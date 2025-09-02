@@ -122,15 +122,42 @@ def assign_species_folds(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFra
     return df
 
 
-def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any], 
-                   dataset_name: str) -> None:
-    """Process a single dataset file."""
-    logger.info(f"Processing {dataset_name} from {input_path}")
+def create_dataset_union(input_dir: Path, dataset_files: List[str], union_name: str) -> pd.DataFrame:
+    """Create a union of multiple dataset files."""
+    logger.info(f"Creating union '{union_name}' from files: {dataset_files}")
     
-    df = pd.read_csv(input_path)
-    logger.info(f"Loaded {len(df):,} sequences")
+    dfs = []
+    for dataset_file in dataset_files:
+        file_path = input_dir / f"{dataset_file}.csv"
+        if not file_path.exists():
+            logger.error(f"Dataset file not found: {file_path}")
+            raise FileNotFoundError(f"Required dataset {dataset_file} not found")
+        
+        df = pd.read_csv(file_path)
+        logger.info(f"  - {dataset_file}: {len(df):,} sequences")
+        dfs.append(df)
     
-    df = filter_by_resolution(df)
+    union_df = pd.concat(dfs, ignore_index=True)
+    
+    # Remove duplicates based on sequence_id
+    initial_count = len(union_df)
+    union_df = union_df.drop_duplicates(subset=['sequence_id'], keep='first')
+    final_count = len(union_df)
+    
+    if initial_count != final_count:
+        logger.info(f"Removed {initial_count - final_count} duplicate sequences")
+    
+    logger.info(f"Union '{union_name}' created with {len(union_df):,} sequences")
+    return union_df
+
+
+def process_union(union_df: pd.DataFrame, output_dir: Path, config: Dict[str, Any], 
+                  union_name: str) -> None:
+    """Process a dataset union - filter and assign folds."""
+    logger.info(f"Processing union: {union_name}")
+    logger.info(f"Initial size: {len(union_df):,} sequences")
+    
+    df = filter_by_resolution(union_df)
     
     df = assign_sequence_folds(df, config)
     df = assign_species_folds(df, config)
@@ -139,7 +166,7 @@ def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any],
         exp_dir = output_dir / exp_name / 'full_10fold'
         exp_dir.mkdir(parents=True, exist_ok=True)
         
-        output_path = exp_dir / f"{dataset_name}.csv"
+        output_path = exp_dir / f"{union_name}.csv"
         df.to_csv(output_path, index=False)
         logger.info(f"Saved to {output_path}")
 
@@ -175,21 +202,28 @@ def main():
     
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Actual file names from BLAST output (no _90cov in names)
-    datasets = [
-        'b_recruited_99pct_species',
-        'c_recruited_99pct_sp',
-        'd_recruited_97pct_sp'
-    ]
+    # Define the experimental setups based on BLAST output:
+    # b = non-_sp sequences at 99% identity (species-level, high confidence)
+    # c = _sp sequences at 99% identity (conservative approach for uncertain taxa)
+    # d = _sp sequences at 97% identity (permissive approach for uncertain taxa)
     
-    for dataset_name in datasets:
-        input_path = input_dir / f"{dataset_name}.csv"
-        
-        if not input_path.exists():
-            logger.warning(f"Dataset not found: {input_path}")
+    # Standard/default approach: use permissive threshold for _sp
+    unions = {
+        'standard': ['b_recruited_99pct_species', 'd_recruited_97pct_sp'],      # b+d (default)
+        'conservative': ['b_recruited_99pct_species', 'c_recruited_99pct_sp']   # b+c (optional)
+    }
+    
+    logger.info("Creating dataset unions:")
+    logger.info("  - standard (b+d): non-_sp at 99% + _sp at 97% [DEFAULT]")
+    logger.info("  - conservative (b+c): non-_sp at 99% + _sp at 99% [OPTIONAL]")
+    
+    for union_name, dataset_files in unions.items():
+        try:
+            union_df = create_dataset_union(input_dir, dataset_files, union_name)
+            process_union(union_df, output_dir, config, union_name)
+        except FileNotFoundError as e:
+            logger.error(f"Skipping {union_name} union: {e}")
             continue
-        
-        process_dataset(input_path, output_dir, config, dataset_name)
     
     logger.info("Fold assignment complete!")
 

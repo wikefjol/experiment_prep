@@ -164,17 +164,16 @@ def validate_fold_preservation(full_df: pd.DataFrame, subset_df: pd.DataFrame) -
             logger.error("  - exp2 folds mismatch")
 
 
-def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any], 
-                   dataset_name: str) -> None:
-    """Process a single dataset to create debug subset."""
+def process_union(output_dir: Path, config: Dict[str, Any], union_name: str) -> None:
+    """Process a union dataset to create debug subset."""
     
-    logger.info(f"Creating debug subset for {dataset_name}")
+    logger.info(f"Creating debug subset for union: {union_name}")
     
     for exp_name in ['exp1_sequence_fold', 'exp2_species_fold']:
-        full_path = output_dir / exp_name / 'full_10fold' / f"{dataset_name}.csv"
+        full_path = output_dir / exp_name / 'full_10fold' / f"{union_name}.csv"
         
         if not full_path.exists():
-            logger.warning(f"Full dataset not found: {full_path}")
+            logger.warning(f"Full union dataset not found: {full_path}")
             logger.warning("Run 01_assign_folds.py first!")
             continue
         
@@ -190,7 +189,7 @@ def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any],
         debug_dir = output_dir / exp_name / 'debug_5genera_10fold'
         debug_dir.mkdir(parents=True, exist_ok=True)
         
-        output_path = debug_dir / f"{dataset_name}.csv"
+        output_path = debug_dir / f"{union_name}.csv"
         subset_df.to_csv(output_path, index=False)
         logger.info(f"Saved debug subset to {output_path}")
         
@@ -225,15 +224,11 @@ def main():
             raise ValueError("EXPERIMENTS_DIR must be set in .env")
         output_dir = Path(experiments_dir)
     
-    # Actual file names from BLAST output
-    datasets = [
-        'b_recruited_99pct_species',
-        'c_recruited_99pct_sp',
-        'd_recruited_97pct_sp'
-    ]
+    # Process the union datasets
+    unions = ['standard', 'conservative']
     
-    for dataset_name in datasets:
-        process_dataset(None, output_dir, config, dataset_name)
+    for union_name in unions:
+        process_union(output_dir, config, union_name)
     
     logger.info("Debug subset creation complete!")
 

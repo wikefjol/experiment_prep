@@ -226,16 +226,16 @@ def generate_summary_report(df: pd.DataFrame, output_path: Path, dataset_name: s
     logger.info(f"Validation report saved to {report_path}")
 
 
-def validate_dataset(output_dir: Path, dataset_name: str, dataset_type: str = 'full_10fold') -> None:
-    """Validate a single dataset."""
+def validate_union(output_dir: Path, union_name: str, dataset_type: str = 'full_10fold') -> None:
+    """Validate a union dataset."""
     
-    logger.info(f"Validating {dataset_name} ({dataset_type})")
+    logger.info(f"Validating {union_name} union ({dataset_type})")
     
-    exp1_path = output_dir / 'exp1_sequence_fold' / dataset_type / f"{dataset_name}.csv"
-    exp2_path = output_dir / 'exp2_species_fold' / dataset_type / f"{dataset_name}.csv"
+    exp1_path = output_dir / 'exp1_sequence_fold' / dataset_type / f"{union_name}.csv"
+    exp2_path = output_dir / 'exp2_species_fold' / dataset_type / f"{union_name}.csv"
     
     if not exp1_path.exists() or not exp2_path.exists():
-        logger.warning(f"Dataset files not found for {dataset_name} ({dataset_type})")
+        logger.warning(f"Union files not found for {union_name} ({dataset_type})")
         return
     
     df_exp1 = pd.read_csv(exp1_path)
@@ -251,7 +251,7 @@ def validate_dataset(output_dir: Path, dataset_name: str, dataset_type: str = 'f
     logger.info(f"Loaded {len(df):,} sequences")
     
     logger.info("\n" + "="*50)
-    logger.info(f"VALIDATION: {dataset_name} ({dataset_type})")
+    logger.info(f"VALIDATION: {union_name} union ({dataset_type})")
     logger.info("="*50)
     
     validate_fold_balance(df, 'fold_exp1')
@@ -262,7 +262,7 @@ def validate_dataset(output_dir: Path, dataset_name: str, dataset_type: str = 'f
     
     report_dir = output_dir / 'validation_reports'
     report_dir.mkdir(exist_ok=True)
-    generate_summary_report(df, report_dir, f"{dataset_name}_{dataset_type}")
+    generate_summary_report(df, report_dir, f"{union_name}_{dataset_type}")
 
 
 def main():
@@ -288,18 +288,14 @@ def main():
             raise ValueError("EXPERIMENTS_DIR must be set in .env")
         output_dir = Path(experiments_dir)
     
-    # Actual file names from BLAST output
-    datasets = [
-        'b_recruited_99pct_species',
-        'c_recruited_99pct_sp',
-        'd_recruited_97pct_sp'
-    ]
+    # Validate the union datasets
+    unions = ['standard', 'conservative']
     
-    for dataset_name in datasets:
-        validate_dataset(output_dir, dataset_name, 'full')
+    for union_name in unions:
+        validate_union(output_dir, union_name, 'full_10fold')
         
         if config['debug_subset']['enabled']:
-            validate_dataset(output_dir, dataset_name, 'debug_5genera')
+            validate_union(output_dir, union_name, 'debug_5genera_10fold')
     
     logger.info("\nValidation complete! Check validation_reports/ for detailed reports.")
 
