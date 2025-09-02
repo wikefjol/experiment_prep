@@ -5,6 +5,8 @@
 Assigns k-fold cross-validation splits to sequences for two experiment types:
 - exp1_sequence_fold: Standard stratified k-fold by resolution level
 - exp2_species_fold: Group k-fold where all sequences of a species stay together
+
+Reads paths from environment and parameters from config.yaml
 """
 
 import pandas as pd
@@ -15,6 +17,7 @@ from pathlib import Path
 from sklearn.model_selection import StratifiedKFold, GroupKFold
 from typing import Dict, Any
 import logging
+from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -143,23 +146,40 @@ def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any],
 
 def main():
     """Main execution function."""
+    # Load environment variables from central .env
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+    else:
+        logger.warning(f"{env_path} not found. Using system environment variables.")
+    
+    # Load operational config from YAML
     config_path = Path(__file__).parent.parent / "config.yaml"
     config = load_config(config_path)
     
+    # Get paths from environment
     if 'LOCAL_TEST' in os.environ:
         logger.info("Running in LOCAL_TEST mode with sample data")
         input_dir = Path("../experiment_prep/sample_data")
         output_dir = Path("../experiment_prep/output")
     else:
-        input_dir = Path(config['input']['blast_output'])
-        output_dir = Path(config['output']['base_path'])
+        # Use environment variables for paths
+        blast_filtered_dir = os.getenv('BLAST_FILTERED_DIR')
+        experiments_dir = os.getenv('EXPERIMENTS_DIR')
+        
+        if not blast_filtered_dir or not experiments_dir:
+            raise ValueError("BLAST_FILTERED_DIR and EXPERIMENTS_DIR must be set in .env")
+            
+        input_dir = Path(blast_filtered_dir)
+        output_dir = Path(experiments_dir)
     
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Actual file names from BLAST output (no _90cov in names)
     datasets = [
-        'a_recruited_99pct_90cov_species',
-        'b_recruited_99pct_90cov_sp_conservative',
-        'd_recruited_97pct_80cov_sp_permissive'
+        'b_recruited_99pct_species',
+        'c_recruited_99pct_sp',
+        'd_recruited_97pct_sp'
     ]
     
     for dataset_name in datasets:

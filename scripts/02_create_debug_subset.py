@@ -4,6 +4,7 @@
 
 Creates a fixed debug subset with 5 diverse genera for quick testing.
 Ensures reproducibility by using a fixed seed.
+Reads paths from environment and parameters from config.yaml
 """
 
 import pandas as pd
@@ -13,6 +14,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
 import logging
+from dotenv import load_dotenv
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -198,6 +200,14 @@ def process_dataset(input_path: Path, output_dir: Path, config: Dict[str, Any],
 
 def main():
     """Main execution function."""
+    # Load environment variables from central .env
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+    else:
+        logger.warning(f"{env_path} not found. Using system environment variables.")
+    
+    # Load operational config from YAML
     config_path = Path(__file__).parent.parent / "config.yaml"
     config = load_config(config_path)
     
@@ -205,16 +215,21 @@ def main():
         logger.info("Debug subset creation disabled in config")
         return
     
+    # Get paths from environment
     if 'LOCAL_TEST' in os.environ:
         logger.info("Running in LOCAL_TEST mode")
         output_dir = Path("../experiment_prep/output")
     else:
-        output_dir = Path(config['output']['base_path'])
+        experiments_dir = os.getenv('EXPERIMENTS_DIR')
+        if not experiments_dir:
+            raise ValueError("EXPERIMENTS_DIR must be set in .env")
+        output_dir = Path(experiments_dir)
     
+    # Actual file names from BLAST output
     datasets = [
-        'a_recruited_99pct_90cov_species',
-        'b_recruited_99pct_90cov_sp_conservative', 
-        'd_recruited_97pct_80cov_sp_permissive'
+        'b_recruited_99pct_species',
+        'c_recruited_99pct_sp',
+        'd_recruited_97pct_sp'
     ]
     
     for dataset_name in datasets:
