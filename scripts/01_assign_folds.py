@@ -15,7 +15,7 @@ import yaml
 import os
 from pathlib import Path
 from sklearn.model_selection import StratifiedKFold, GroupKFold
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 from dotenv import load_dotenv
 
