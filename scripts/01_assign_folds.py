@@ -203,19 +203,20 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Define the experimental setups based on BLAST output:
-    # b = non-_sp sequences at 99% identity (species-level, high confidence)
-    # c = _sp sequences at 99% identity (conservative approach for uncertain taxa)
-    # d = _sp sequences at 97% identity (permissive approach for uncertain taxa)
+    # a = original SH sequences (reference sequences)
+    # b = recruited non-_sp sequences at 99% identity (species-level, high confidence)
+    # c = recruited _sp sequences at 99% identity (conservative approach for uncertain taxa)
+    # d = recruited _sp sequences at 97% identity (permissive approach for uncertain taxa)
     
-    # Standard/default approach: use permissive threshold for _sp
+    # Unions include original sequences (a) plus recruited sequences
     unions = {
-        'standard': ['b_recruited_99pct_species', 'd_recruited_97pct_sp'],      # b+d (default)
-        'conservative': ['b_recruited_99pct_species', 'c_recruited_99pct_sp']   # b+c (optional)
+        'standard': ['a_original_sh_sequences', 'b_recruited_99pct_species', 'd_recruited_97pct_sp'],      # a+b+d (default)
+        'conservative': ['a_original_sh_sequences', 'b_recruited_99pct_species', 'c_recruited_99pct_sp']   # a+b+c (optional)
     }
     
     logger.info("Creating dataset unions:")
-    logger.info("  - standard (b+d): non-_sp at 99% + _sp at 97% [DEFAULT]")
-    logger.info("  - conservative (b+c): non-_sp at 99% + _sp at 99% [OPTIONAL]")
+    logger.info("  - standard (a+b+d): original + non-_sp at 99% + _sp at 97% [DEFAULT]")
+    logger.info("  - conservative (a+b+c): original + non-_sp at 99% + _sp at 99% [OPTIONAL]")
     
     for union_name, dataset_files in unions.items():
         try:
