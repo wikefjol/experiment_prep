@@ -167,7 +167,7 @@ def generate_summary_report(df: pd.DataFrame, output_path: Path, dataset_name: s
         f"- Total sequences: {len(df):,}",
         f"- Unique species: {df['species'].nunique():,}",
         f"- Unique genera: {df['genus'].nunique():,}",
-        f"- Resolution levels: {df['resolution_level'].value_counts().sort_index().to_dict()}",
+        f"- Resolution levels: {df['species_resolution'].value_counts().sort_index().to_dict()}",
         f""
     ]
     
@@ -179,7 +179,7 @@ def generate_summary_report(df: pd.DataFrame, output_path: Path, dataset_name: s
         f""
     ])
     
-    exp1_strat = validate_stratification(df, 'fold_exp1', 'resolution_level')
+    exp1_strat = validate_stratification(df, 'fold_exp1', 'species_resolution')
     report_lines.extend([
         f"### Stratification by Resolution Level",
         f"- Max deviation: {exp1_strat['max_deviation']:.1%}",
@@ -254,7 +254,7 @@ def validate_dataset(output_dir: Path, dataset_name: str, dataset_type: str = 'f
     
     validate_fold_balance(df, 'fold_exp1')
     validate_fold_balance(df, 'fold_exp2')
-    validate_stratification(df, 'fold_exp1', 'resolution_level')
+    validate_stratification(df, 'fold_exp1', 'species_resolution')
     validate_species_grouping(df)
     validate_genus_distribution(df)
     

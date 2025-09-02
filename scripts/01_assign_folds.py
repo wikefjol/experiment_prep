@@ -27,10 +27,10 @@ def load_config(config_path: str = "../config.yaml") -> Dict[str, Any]:
 
 
 def filter_by_resolution(df: pd.DataFrame, min_resolution: int = 4) -> pd.DataFrame:
-    """Filter sequences by minimum resolution level."""
-    logger.info(f"Filtering sequences with resolution_level > {min_resolution}")
+    """Filter sequences by minimum species resolution level."""
+    logger.info(f"Filtering sequences with species_resolution > {min_resolution}")
     initial_count = len(df)
-    df_filtered = df[df['resolution_level'] > min_resolution].copy()
+    df_filtered = df[df['species_resolution'] > min_resolution].copy()
     final_count = len(df_filtered)
     logger.info(f"Filtered from {initial_count:,} to {final_count:,} sequences")
     return df_filtered
@@ -43,7 +43,7 @@ def assign_sequence_folds(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFr
     """
     exp_config = config['experiments']['exp1_sequence_fold']
     k_folds = exp_config['k_folds']
-    stratify_by = exp_config['stratify_by']
+    stratify_by = exp_config.get('stratify_by', 'species_resolution')  # Use species_resolution as default
     seed = exp_config['seed']
     
     logger.info(f"Assigning sequence-level {k_folds}-fold splits, stratified by {stratify_by}")
@@ -71,7 +71,7 @@ def assign_species_folds(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFra
     """
     exp_config = config['experiments']['exp2_species_fold']
     k_folds = exp_config['k_folds']
-    stratify_by = exp_config['stratify_by']
+    stratify_by = exp_config.get('stratify_by', 'genus')  # Keep genus for species grouping
     seed = exp_config['seed']
     
     logger.info(f"Assigning species-level {k_folds}-fold splits, stratified by {stratify_by}")

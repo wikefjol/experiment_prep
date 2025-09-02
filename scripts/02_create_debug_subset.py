@@ -42,11 +42,11 @@ def select_diverse_genera(df: pd.DataFrame, config: Dict[str, Any]) -> List[str]
     genus_stats = df.groupby('genus').agg({
         'species': 'nunique',
         'sequence_id': 'count',
-        'resolution_level': 'mean'
+        'species_resolution': 'mean'
     }).rename(columns={
         'species': 'n_species',
         'sequence_id': 'n_sequences',
-        'resolution_level': 'avg_resolution'
+        'species_resolution': 'avg_resolution'
     })
     
     eligible_genera = genus_stats[genus_stats['n_species'] >= min_species]
