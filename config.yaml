@@ -1,0 +1,29 @@
+# Data paths for experiment preparation
+input:
+  # Location of filtered CSV files from BLAST pipeline
+  # Files expected: a_recruited_99pct_90cov_species.csv, b_recruited_99pct_90cov_sp_conservative.csv, d_recruited_97pct_80cov_sp_permissive.csv
+  blast_output: "/mimer/NOBACKUP/groups/snic2022-22-552/filbern/fungal_classification/v1.0/blast/filtered/full"
+  
+output:
+  # Where to save fold-assigned datasets
+  base_path: "/mimer/NOBACKUP/groups/snic2022-22-552/filbern/fungal_classification/v1.0/experiment_prep"
+
+experiments:
+  exp1_sequence_fold:
+    type: "sequence"
+    k_folds: 10
+    stratify_by: "resolution_level"
+    seed: 42
+    
+  exp2_species_fold:
+    type: "species_group"
+    k_folds: 10
+    stratify_by: "genus"
+    seed: 42
+
+debug_subset:
+  enabled: true
+  n_genera: 5
+  min_species_per_genus: 3
+  target_size: 10000
+  seed: 42
