@@ -186,7 +186,7 @@ def process_union(output_dir: Path, config: Dict[str, Any], union_name: str) -> 
         
         validate_fold_preservation(df, subset_df)
         
-        debug_dir = output_dir / exp_name / 'debug_5genera_10fold'
+        debug_dir = output_dir / exp_name / 'debug_5genera_10fold' / 'data'
         debug_dir.mkdir(parents=True, exist_ok=True)
         
         output_path = debug_dir / f"{union_name}.csv"

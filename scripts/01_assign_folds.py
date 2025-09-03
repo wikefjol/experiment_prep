@@ -163,7 +163,7 @@ def process_union(union_df: pd.DataFrame, output_dir: Path, config: Dict[str, An
     df = assign_species_folds(df, config)
     
     for exp_name in ['exp1_sequence_fold', 'exp2_species_fold']:
-        exp_dir = output_dir / exp_name / 'full_10fold'
+        exp_dir = output_dir / exp_name / 'full_10fold' / 'data'
         exp_dir.mkdir(parents=True, exist_ok=True)
         
         output_path = exp_dir / f"{union_name}.csv"
