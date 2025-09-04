@@ -231,8 +231,8 @@ def validate_union(output_dir: Path, union_name: str, dataset_type: str = 'full_
     
     logger.info(f"Validating {union_name} union ({dataset_type})")
     
-    exp1_path = output_dir / 'exp1_sequence_fold' / dataset_type / f"{union_name}.csv"
-    exp2_path = output_dir / 'exp2_species_fold' / dataset_type / f"{union_name}.csv"
+    exp1_path = output_dir / 'exp1_sequence_fold' / dataset_type / 'data' / f"{union_name}.csv"
+    exp2_path = output_dir / 'exp2_species_fold' / dataset_type / 'data' / f"{union_name}.csv"
     
     if not exp1_path.exists() or not exp2_path.exists():
         logger.warning(f"Union files not found for {union_name} ({dataset_type})")
