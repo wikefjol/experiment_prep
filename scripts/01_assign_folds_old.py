@@ -3,10 +3,9 @@
 01_assign_folds.py
 
 Assigns k-fold cross-validation splits to sequences for two experiment types:
-- exp1_sequence_fold: Standard stratified k-fold by species labels (updated)
+- exp1_sequence_fold: Standard stratified k-fold by resolution level
 - exp2_species_fold: Group k-fold where all sequences of a species stay together
 
-Now includes sequence-content deduplication within species after filtering.
 Reads paths from environment and parameters from config.yaml
 """
 
@@ -40,128 +39,17 @@ def filter_by_resolution(df: pd.DataFrame, min_resolution: int = 4) -> pd.DataFr
     return df_filtered
 
 
-def deduplicate_within_species(df: pd.DataFrame, keep: str = 'first') -> pd.DataFrame:
-    """
-    Remove duplicate sequences (by content) within each species.
-    Keeps duplicate sequences across different species.
-    
-    Args:
-        df: DataFrame with 'species' and 'sequence' columns
-        keep: Which duplicate to keep ('first', 'last', or 'resolution')
-              'resolution' keeps the one with highest species_resolution
-    
-    Returns:
-        DataFrame with duplicates removed within each species
-    """
-    logger.info("="*60)
-    logger.info("DEDUPLICATING SEQUENCES WITHIN SPECIES")
-    logger.info("="*60)
-    
-    initial_count = len(df)
-    initial_species = df['species'].nunique()
-    
-    # Calculate initial statistics
-    logger.info(f"Initial dataset:")
-    logger.info(f"  Total sequences: {initial_count:,}")
-    logger.info(f"  Unique species: {initial_species:,}")
-    logger.info(f"  Unique sequences overall: {df['sequence'].nunique():,}")
-    
-    # Track deduplication statistics per species
-    dedup_stats = []
-    
-    if keep == 'resolution':
-        # Sort by species and resolution (descending) to keep highest resolution
-        df_sorted = df.sort_values(['species', 'species_resolution'], 
-                                   ascending=[True, False])
-        # Group by species and remove duplicates within each group
-        df_dedup = df_sorted.groupby('species', group_keys=False).apply(
-            lambda x: x.drop_duplicates(subset=['sequence'], keep='first')
-        ).reset_index(drop=True)
-    else:
-        # Simple deduplication keeping first or last
-        df_dedup = df.groupby('species', group_keys=False).apply(
-            lambda x: x.drop_duplicates(subset=['sequence'], keep=keep)
-        ).reset_index(drop=True)
-    
-    # Calculate deduplication statistics
-    final_count = len(df_dedup)
-    sequences_removed = initial_count - final_count
-    reduction_pct = (sequences_removed / initial_count) * 100
-    
-    logger.info(f"\nDeduplication results:")
-    logger.info(f"  Sequences removed: {sequences_removed:,} ({reduction_pct:.1f}%)")
-    logger.info(f"  Sequences remaining: {final_count:,}")
-    logger.info(f"  Unique species preserved: {df_dedup['species'].nunique():,}")
-    
-    # Show top species by deduplication
-    species_counts_before = df.groupby('species').size()
-    species_counts_after = df_dedup.groupby('species').size()
-    
-    dedup_by_species = pd.DataFrame({
-        'before': species_counts_before,
-        'after': species_counts_after
-    }).fillna(0)
-    dedup_by_species['removed'] = dedup_by_species['before'] - dedup_by_species['after']
-    dedup_by_species['removal_pct'] = (dedup_by_species['removed'] / dedup_by_species['before']) * 100
-    
-    logger.info(f"\nTop 10 species by sequences removed:")
-    top_dedup = dedup_by_species.nlargest(10, 'removed')
-    for species, row in top_dedup.iterrows():
-        logger.info(f"  {species[:40]:<40} {int(row['before']):>6} → {int(row['after']):>6} "
-                   f"(-{int(row['removed']):>5}, {row['removal_pct']:>5.1f}%)")
-    
-    # Check for cross-species duplicates (informative)
-    logger.info(f"\nCross-species sequence sharing:")
-    sequence_species_counts = df_dedup.groupby('sequence')['species'].nunique()
-    shared_sequences = sequence_species_counts[sequence_species_counts > 1]
-    if len(shared_sequences) > 0:
-        logger.info(f"  {len(shared_sequences):,} sequences appear in multiple species")
-        logger.info(f"  Max species sharing one sequence: {shared_sequences.max()}")
-        
-        # Show examples of highly shared sequences
-        most_shared = shared_sequences.nlargest(5)
-        logger.info(f"  Top shared sequences (appearing in N species):")
-        for seq_hash, n_species in most_shared.items():
-            # Get the species that share this sequence
-            species_list = df_dedup[df_dedup['sequence'] == seq_hash]['species'].unique()[:3]
-            species_str = ', '.join(species_list[:3])
-            if len(species_list) > 3:
-                species_str += f", ... ({n_species} total)"
-            logger.info(f"    Sequence appears in {n_species} species: {species_str}")
-    else:
-        logger.info(f"  No sequences are shared between species")
-    
-    logger.info("="*60)
-    
-    return df_dedup
-
-
 def assign_sequence_folds(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Assign standard k-fold splits stratified by species labels.
+    Assign standard k-fold splits stratified by resolution level.
     Each sequence is independently assigned to a fold.
-    Updated to stratify by species instead of resolution.
     """
     exp_config = config['experiments']['exp1_sequence_fold']
     k_folds = exp_config['k_folds']
-    # Changed default from 'species_resolution' to 'species'
-    stratify_by = exp_config.get('stratify_by', 'species')
+    stratify_by = exp_config.get('stratify_by', 'species_resolution')  # Use species_resolution as default
     seed = exp_config['seed']
     
     logger.info(f"Assigning sequence-level {k_folds}-fold splits, stratified by {stratify_by}")
-    
-    # Check if we're stratifying by species (new behavior)
-    if stratify_by == 'species':
-        # Count sequences per species
-        species_counts = df['species'].value_counts()
-        rare_species = species_counts[species_counts < k_folds]
-        
-        if len(rare_species) > 0:
-            logger.warning(f"Warning: {len(rare_species):,} species have fewer than {k_folds} sequences")
-            logger.warning(f"These species will not appear in all folds")
-            logger.info(f"Species with <{k_folds} sequences represent "
-                       f"{df['species'].isin(rare_species.index).sum():,} sequences "
-                       f"({df['species'].isin(rare_species.index).sum()/len(df)*100:.1f}% of data)")
     
     skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=seed)
     
@@ -175,19 +63,6 @@ def assign_sequence_folds(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFr
     
     fold_counts = df['fold_exp1'].value_counts().sort_index()
     logger.info(f"Fold distribution for exp1:\n{fold_counts}")
-    
-    # If stratifying by species, show species distribution
-    if stratify_by == 'species':
-        species_per_fold = df.groupby('fold_exp1')['species'].nunique()
-        logger.info(f"Unique species per fold:\n{species_per_fold}")
-        
-        # Check fold balance for common species
-        common_species = species_counts[species_counts >= k_folds].index[:10]
-        logger.info(f"\nFold distribution for top 10 common species:")
-        for species in common_species:
-            species_df = df[df['species'] == species]
-            fold_dist = species_df['fold_exp1'].value_counts().sort_index()
-            logger.info(f"  {species[:30]:<30} {list(fold_dist.values)}")
     
     return df
 
@@ -264,13 +139,13 @@ def create_dataset_union(input_dir: Path, dataset_files: List[str], union_name: 
     
     union_df = pd.concat(dfs, ignore_index=True)
     
-    # Remove duplicates based on sequence_id (keep technical duplicates out)
+    # Remove duplicates based on sequence_id
     initial_count = len(union_df)
     union_df = union_df.drop_duplicates(subset=['sequence_id'], keep='first')
     final_count = len(union_df)
     
     if initial_count != final_count:
-        logger.info(f"Removed {initial_count - final_count} duplicate sequence_ids")
+        logger.info(f"Removed {initial_count - final_count} duplicate sequences")
     
     logger.info(f"Union '{union_name}' created with {len(union_df):,} sequences")
     return union_df
@@ -278,24 +153,15 @@ def create_dataset_union(input_dir: Path, dataset_files: List[str], union_name: 
 
 def process_union(union_df: pd.DataFrame, output_dir: Path, config: Dict[str, Any], 
                   union_name: str) -> None:
-    """Process a dataset union - filter, deduplicate, and assign folds."""
-    logger.info(f"\n{'='*70}")
-    logger.info(f"PROCESSING UNION: {union_name}")
-    logger.info(f"{'='*70}")
+    """Process a dataset union - filter and assign folds."""
+    logger.info(f"Processing union: {union_name}")
     logger.info(f"Initial size: {len(union_df):,} sequences")
     
-    # Step 1: Filter by resolution (keep good quality annotations)
     df = filter_by_resolution(union_df)
     
-    # Step 2: Deduplicate within species (remove sequence-content duplicates)
-    # Use 'resolution' to keep highest resolution version when deduplicating
-    df = deduplicate_within_species(df, keep='resolution')
-    
-    # Step 3: Assign folds for both experiments
     df = assign_sequence_folds(df, config)
     df = assign_species_folds(df, config)
     
-    # Save the processed data
     for exp_name in ['exp1_sequence_fold', 'exp2_species_fold']:
         exp_dir = output_dir / exp_name / 'full_10fold' / 'data'
         exp_dir.mkdir(parents=True, exist_ok=True)
@@ -303,11 +169,6 @@ def process_union(union_df: pd.DataFrame, output_dir: Path, config: Dict[str, An
         output_path = exp_dir / f"{union_name}.csv"
         df.to_csv(output_path, index=False)
         logger.info(f"Saved to {output_path}")
-    
-    logger.info(f"{'='*70}")
-    logger.info(f"COMPLETED: {union_name}")
-    logger.info(f"Final size: {len(df):,} sequences")
-    logger.info(f"{'='*70}\n")
 
 
 def main():
@@ -353,16 +214,9 @@ def main():
         'conservative': ['a_original_sh_sequences', 'b_recruited_99pct_species', 'c_recruited_99pct_sp']   # a+b+c (optional)
     }
     
-    logger.info("="*70)
-    logger.info("EXPERIMENT PREPARATION WITH DEDUPLICATION")
-    logger.info("="*70)
-    logger.info("Creating dataset unions with sequence-content deduplication:")
+    logger.info("Creating dataset unions:")
     logger.info("  - standard (a+b+d): original + non-_sp at 99% + _sp at 97% [DEFAULT]")
     logger.info("  - conservative (a+b+c): original + non-_sp at 99% + _sp at 99% [OPTIONAL]")
-    logger.info("\nNew features:")
-    logger.info("  ✓ Sequence-content deduplication within species")
-    logger.info("  ✓ Species-label stratification for exp1")
-    logger.info("="*70 + "\n")
     
     for union_name, dataset_files in unions.items():
         try:
@@ -372,9 +226,7 @@ def main():
             logger.error(f"Skipping {union_name} union: {e}")
             continue
     
-    logger.info("\n" + "="*70)
-    logger.info("FOLD ASSIGNMENT COMPLETE!")
-    logger.info("="*70)
+    logger.info("Fold assignment complete!")
 
 
 if __name__ == "__main__":
