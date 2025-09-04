@@ -170,7 +170,7 @@ def process_union(output_dir: Path, config: Dict[str, Any], union_name: str) -> 
     logger.info(f"Creating debug subset for union: {union_name}")
     
     for exp_name in ['exp1_sequence_fold', 'exp2_species_fold']:
-        full_path = output_dir / exp_name / 'full_10fold' / f"{union_name}.csv"
+        full_path = output_dir / exp_name / 'full_10fold' / 'data' / f"{union_name}.csv"
         
         if not full_path.exists():
             logger.warning(f"Full union dataset not found: {full_path}")
