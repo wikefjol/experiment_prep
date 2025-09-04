@@ -5,7 +5,7 @@ experiments:
   exp1_sequence_fold:
     type: "sequence"
     k_folds: 10
-    stratify_by: "species_resolution"  # Column from BLAST output
+    stratify_by: "species"  # Changed from species_resolution to species
     seed: 42
     
   exp2_species_fold:
