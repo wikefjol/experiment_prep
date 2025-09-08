@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s -%(levelname)s - %(m
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str = "../config.yaml") -> Dict[str, Any]:
+def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
     """Load configuration from YAML file."""
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
@@ -54,7 +54,7 @@ dataset sizes
     config = load_config()
 
     # Get paths
-    data_base = Path(os.path.expandvars(os.getenv('FUNGAL_BASE'))) / 'data'
+    data_base = Path(os.path.expandvars(os.getenv('FUNGAL_BASE'))) / 'experiments'
 
     # Union types to process
     union_types = ['standard', 'conservative']
@@ -76,8 +76,10 @@ dataset sizes
 
             # Build data path
             data_file = data_base / f"{union_type}.csv"
-            if dataset_size.startswith('debug'):
-                data_file = data_base / dataset_size /f"{union_type}.csv"
+            if dataset_size == 'full':
+                data_file = data_base / 'exp1_sequence_fold' /'full_10fold' / 'data' / f"{union_type}.csv"
+            else:  # debug datasets  
+                data_file = data_base / 'exp1_sequence_fold' /dataset_size / 'data' / f"{union_type}.csv"
 
             if not data_file.exists():
                 logger.warning(f"Data file not found: {data_file}")
