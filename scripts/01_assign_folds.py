@@ -30,73 +30,6 @@ def load_config(config_path: str = "../config.yaml") -> Dict[str, Any]:
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
-
-class LabelEncoder:
-    """Label encoder that returns None for unknown labels - same as granular_control"""
-    
-    def __init__(self, labels):
-        """Initialize encoder from list of labels"""
-        unique_labels = sorted(set(labels))
-        self.label_to_index = {label: idx for idx, label in enumerate(unique_labels)}
-        self.index_to_label = {idx: label for idx, label in enumerate(unique_labels)}
-    
-    def encode(self, label):
-        """Encode label to index, returns None for unknown"""
-        return self.label_to_index.get(label, None)
-    
-    def decode(self, index):
-        """Decode index to label"""
-        return self.index_to_label.get(index, None)
-    
-    def to_dict(self):
-        """Convert to JSON-serializable dictionary"""
-        return {
-            'label_to_index': self.label_to_index,
-            'index_to_label': {str(k): v for k, v in self.index_to_label.items()}
-        }
-
-
-def save_fold_label_encoders(df: pd.DataFrame, output_dir: Path, union_name: str, 
-                             fold_column: str = 'fold_exp1') -> None:
-    """Save separate label encoders for each fold - built from training data only"""
-    
-    logger.info(f"Creating per-fold label encoders for {union_name}")
-    taxonomic_levels = ['phylum', 'class', 'order', 'family', 'genus', 'species']
-    
-    for fold in range(1, 11):
-        # Build encoders from TRAINING folds only (exclude validation fold)
-        train_df = df[df[fold_column] != fold]
-        
-        encoders = {}
-        for level in taxonomic_levels:
-            # Get unique labels from TRAINING data only
-            train_labels = train_df[level].dropna().tolist()
-            
-            # Build encoder
-            encoder = LabelEncoder(train_labels)
-            encoder_dict = encoder.to_dict()
-            encoder_dict['num_classes'] = len(encoder.label_to_index)
-            
-            # Add stats about what's missing in validation
-            val_df = df[df[fold_column] == fold]
-            val_labels = set(val_df[level].dropna().unique())
-            train_labels_set = set(encoder.label_to_index.keys())
-            unknown_labels = val_labels - train_labels_set
-            
-            encoder_dict['num_unknown_in_val'] = len(unknown_labels)
-            if unknown_labels:
-                encoder_dict['example_unknown'] = list(unknown_labels)[:5]
-            
-            encoders[level] = encoder_dict
-        
-        # Save fold-specific encoder
-        encoder_path = output_dir / f"label_encoders_{union_name}_fold{fold}.json"
-        with open(encoder_path, 'w') as f:
-            json.dump(encoders, f, indent=2)
-    
-    logger.info(f"Saved 10 fold-specific label encoders for {union_name}")
-
-
 def filter_by_resolution(df: pd.DataFrame, min_resolution: int = 4) -> pd.DataFrame:
     """Filter sequences by minimum species resolution level."""
     logger.info(f"Filtering sequences with species_resolution > {min_resolution}")
@@ -370,22 +303,6 @@ def process_union(union_df: pd.DataFrame, output_dir: Path, config: Dict[str, An
         output_path = exp_dir / f"{union_name}.csv"
         df.to_csv(output_path, index=False)
         logger.info(f"Saved to {output_path}")
-        
-        # Save fold-specific label encoders
-        fold_column = 'fold_exp1' if 'exp1' in exp_name else 'fold_exp2'
-        save_fold_label_encoders(df, exp_dir, union_name, fold_column)
-    
-    # Also save for debug subsets
-    for exp_name in ['exp1_sequence_fold', 'exp2_species_fold']:
-        debug_dir = output_dir / exp_name / 'debug_5genera_10fold' / 'data'
-        if debug_dir.exists():
-            # Check if debug subset exists
-            debug_csv = debug_dir / f"{union_name}.csv"
-            if debug_csv.exists():
-                debug_df = pd.read_csv(debug_csv)
-                fold_column = 'fold_exp1' if 'exp1' in exp_name else 'fold_exp2'
-                save_fold_label_encoders(debug_df, debug_dir, union_name, fold_column)
-                logger.info(f"Saved label encoders for debug subset: {exp_name}/{union_name}")
     
     logger.info(f"{'='*70}")
     logger.info(f"COMPLETED: {union_name}")
